@@ -11,7 +11,7 @@ print("--- Starting Model Training Script ---")
 try:
     # Use an absolute path based on the script's location to prevent file not found errors
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_path = os.path.join(script_dir, 'new_york_tree_census_2015_with_costs.csv')
+    data_path = os.path.join(script_dir, '..', 'DATA', 'new_york_tree_census_2015_with_costs.csv')
     df = pd.read_csv(data_path)
     print(f"Successfully loaded dataset from {data_path}")
 except FileNotFoundError:
@@ -30,6 +30,9 @@ df.dropna(subset=[TARGET_VARIABLE], inplace=True)
 health_map = {'Poor': 1, 'Fair': 2, 'Good': 3}
 df['health_encoded'] = df['health'].map(health_map).fillna(2)
 
+health_map = {'Poor': 1, 'Fair': 2, 'Good': 3}
+df['health_encoded'] = df['health'].map(health_map).fillna(2)
+
 # To prevent the model from getting confused by too many rare species,
 # we group all but the top 10 most common species into an 'Other' category.
 top_10_species = df['spc_common'].value_counts().nlargest(10).index
@@ -40,7 +43,6 @@ species_dummies = pd.get_dummies(df['species_simplified'], prefix='spc')
 
 # --- 3. FINAL FEATURE SELECTION ---
 # Create a final, clean list of features for the model.
-# This is the crucial step to prevent data type errors.
 feature_list = ['tree_dbh', 'health_encoded'] + species_dummies.columns.tolist()
 X = pd.concat([df[['tree_dbh', 'health_encoded']], species_dummies], axis=1)[feature_list]
 y = df[TARGET_VARIABLE]
@@ -53,9 +55,7 @@ print(f"Data split into {len(X_train)} training and {len(X_test)} testing sample
 
 # --- 5. MODEL TRAINING ---
 print("Training XGBoost model...")
-# Initialize the XGBoost Regressor model
 model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42, objective='reg:squarederror')
-# Train the model on our training data
 model.fit(X_train, y_train)
 print("Model training complete.")
 
@@ -68,23 +68,17 @@ print("-------------------------\n")
 
 # --- 7. FEATURE IMPORTANCE & VISUALIZATION ---
 print("Generating feature importance plot...")
-# Define the output directory for the plot
-project_root = os.path.dirname(script_dir)
-output_dir = os.path.join(project_root, 'VISUALIZATIONS')
+output_dir = os.path.abspath(os.path.join(script_dir, '..', 'VISUALIZATIONS'))
 os.makedirs(output_dir, exist_ok=True)
 plot_path = os.path.join(output_dir, 'feature_importance.png')
 
-# Create the plot
 plt.figure(figsize=(10, 8))
 xgb.plot_importance(model, height=0.8, max_num_features=10, importance_type='weight', show_values=False, title='Feature Importance')
 plt.xlabel("Importance (Weight)")
 plt.tight_layout()
-
-# Save the plot
 plt.savefig(plot_path)
 print(f"SUCCESS: Feature importance plot saved to '{plot_path}'")
 
-# Attempt to show the plot in a window to confirm generation
 try:
     print("Attempting to display plot...")
     plt.show()

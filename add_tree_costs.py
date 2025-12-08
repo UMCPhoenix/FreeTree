@@ -37,55 +37,45 @@ def calculate_tree_removal_cost(diameter):
     # Ensure cost is not negative and round to 2 decimal places
     return round(max(200, cost), 2)
 
-def process_tree_data(input_file_path, output_file_path):
-    """
-    Reads tree census data, calculates removal costs, and saves the
-    data to a new CSV file.
+# --- 1. LOAD DATA & APPLY PRE-PROCESSING ---
+print("--- Starting Data Processing Script ---")
+try:
+    # Use an absolute path for robustness
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    input_path = os.path.join("DATA", "OLDDATA", "new_york_tree_census_2015.csv")
+    tree_data = pd.read_csv(input_path)
+    print(f"Successfully loaded dataset from {input_path}")
+except FileNotFoundError:
+    print(f"FATAL ERROR: The data file was not found at {input_path}")
+    exit()
 
-    Args:
-        input_file_path (str): The path to the input CSV file.
-        output_file_path (str): The path where the output CSV file will be saved.
-    """
-    try:
-        # Read the CSV file
-        print(f"Reading data from {input_file_path}...")
-        tree_data = pd.read_csv(input_file_path)
-        print("Data read successfully.")
+# --- 2. DATA CLEANING ---
+# Remove rows with missing or zero diameter, as they cannot have a cost
+original_rows = len(tree_data)
+tree_data.dropna(subset=['tree_dbh'], inplace=True)
+tree_data = tree_data[tree_data['tree_dbh'] > 0]
+rows_after_nan = len(tree_data)
+print(f"Removed {original_rows - rows_after_nan} rows with missing or zero diameter.")
 
-        # Ensure the 'tree_dbh' column exists
-        if 'tree_dbh' not in tree_data.columns:
-            print("Error: 'tree_dbh' column not found in the input file.")
-            return
+# Remove extreme outliers that are likely data entry errors
+max_diameter = 60 # A generous but realistic cap for urban trees
+outliers = tree_data[tree_data['tree_dbh'] > max_diameter]
+num_outliers = len(outliers)
+if num_outliers > 0:
+    tree_data = tree_data[tree_data['tree_dbh'] <= max_diameter]
+    print(f"Removed {num_outliers} outlier trees with diameter > {max_diameter} inches.")
 
-        # Calculate the removal cost
-        print("Calculating removal costs...")
-        tree_data['estimated_cost'] = tree_data['tree_dbh'].apply(calculate_tree_removal_cost)
-        print("Cost calculation complete.")
+# --- 3. COST CALCULATION ---
+print("Calculating removal costs...")
+tree_data['estimated_cost'] = tree_data['tree_dbh'].apply(calculate_tree_removal_cost)
+print("Cost calculation complete.")
 
-        # Save the new dataframe to a CSV
-        print(f"Saving data to {output_file_path}...")
-        tree_data.to_csv(output_file_path, index=False)
-        print(f"Successfully created {output_file_path}")
+# --- 4. SAVE CLEANED DATA ---
+output_dir = os.path.join("DATA")
+os.makedirs(output_dir, exist_ok=True)
+output_path = os.path.join(output_dir, 'new_york_tree_census_2015_with_costs.csv')
 
-    except FileNotFoundError:
-        print(f"Error: The file {input_file_path} was not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-if __name__ == "__main__":
-    # Define file paths
-    input_dir = 'OLDDATA'
-    output_dir = 'NEWDATA'
-    input_file_name = 'new_york_tree_census_2015.csv'
-    output_file_name = 'new_york_tree_census_2015_with_costs.csv'
-
-    input_path = os.path.join(input_dir, input_file_name)
-    
-    # Create output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        
-    output_path = os.path.join(output_dir, output_file_name)
-
-    # Process the data
-    process_tree_data(input_path, output_path)
+tree_data.to_csv(output_path, index=False)
+print(f"SUCCESS: Cleaned data with costs saved to '{output_path}'")
+print(f"Final dataset contains {len(tree_data)} rows.")
+print("\n--- Script Finished ---")
