@@ -6,67 +6,57 @@ import xgboost as xgb
 import matplotlib.pyplot as plt
 import os
 
-# --- 1. SETUP & DATA LOADING ---
+# 1. Load cleaned tree census data
 print("--- Starting Model Training Script ---")
 try:
-    # Use an absolute path based on the script's location to prevent file not found errors
+    # Use absolute path for reliability
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(script_dir, '..', 'DATA', 'new_york_tree_census_2015_with_costs.csv')
     df = pd.read_csv(data_path)
     print(f"Successfully loaded dataset from {data_path}")
 except FileNotFoundError:
-    print(f"FATAL ERROR: The data file was not found at {data_path}")
+    print(f"ERROR: Data file not found at {data_path}")
     exit()
 
-# --- 2. FEATURE ENGINEERING ---
+# 2. Prepare features for regression
 print("Starting feature engineering...")
-# Define the target variable we want to predict
+# Target variable: estimated tree removal cost
 TARGET_VARIABLE = 'estimated_cost'
-
-# Drop rows where the target variable is missing
 df.dropna(subset=[TARGET_VARIABLE], inplace=True)
 
-# Convert 'health' status from text to numbers. Default to 2 ('Fair') if value is missing.
+# Encode health status numerically (Poor=1, Fair=2, Good=3)
 health_map = {'Poor': 1, 'Fair': 2, 'Good': 3}
 df['health_encoded'] = df['health'].map(health_map).fillna(2)
 
-health_map = {'Poor': 1, 'Fair': 2, 'Good': 3}
-df['health_encoded'] = df['health'].map(health_map).fillna(2)
-
-# To prevent the model from getting confused by too many rare species,
-# we group all but the top 10 most common species into an 'Other' category.
+# Group rare species as 'Other' and one-hot encode top 10 species
 top_10_species = df['spc_common'].value_counts().nlargest(10).index
 df['species_simplified'] = df['spc_common'].apply(lambda x: x if x in top_10_species else 'Other')
-
-# One-Hot Encode the simplified species categories into separate columns (spc_honeylocust, spc_pin oak, etc.)
 species_dummies = pd.get_dummies(df['species_simplified'], prefix='spc')
 
-# --- 3. FINAL FEATURE SELECTION ---
-# Create a final, clean list of features for the model.
+# Final feature set: diameter, health, and species indicators
 feature_list = ['tree_dbh', 'health_encoded'] + species_dummies.columns.tolist()
 X = pd.concat([df[['tree_dbh', 'health_encoded']], species_dummies], axis=1)[feature_list]
 y = df[TARGET_VARIABLE]
 print("Feature engineering complete.")
 print(f"Selected Features: {feature_list}")
 
-# --- 4. DATA SPLITTING ---
+# 3. Split data into training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-print(f"Data split into {len(X_train)} training and {len(X_test)} testing samples.")
+print(f"Data split: {len(X_train)} train / {len(X_test)} test samples.")
 
-# --- 5. MODEL TRAINING ---
-print("Training XGBoost model...")
+# 4. Fit regression model
+print("Training XGBoost regression model...")
 model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42, objective='reg:squarederror')
 model.fit(X_train, y_train)
 print("Model training complete.")
 
-# --- 6. MODEL EVALUATION ---
+# 5. Evaluate model performance
 predictions = model.predict(X_test)
 mae = mean_absolute_error(y_test, predictions)
-print(f"\n--- MODEL PERFORMANCE ---")
-print(f"Mean Absolute Error: ${mae:,.2f}")
+print(f"\nModel Mean Absolute Error: ${mae:,.2f}")
 print("-------------------------\n")
 
-# --- 7. FEATURE IMPORTANCE & VISUALIZATION ---
+# 6. Visualize feature importance
 print("Generating feature importance plot...")
 output_dir = os.path.abspath(os.path.join(script_dir, '..', 'VISUALIZATIONS'))
 os.makedirs(output_dir, exist_ok=True)
@@ -77,7 +67,7 @@ xgb.plot_importance(model, height=0.8, max_num_features=10, importance_type='wei
 plt.xlabel("Importance (Weight)")
 plt.tight_layout()
 plt.savefig(plot_path)
-print(f"SUCCESS: Feature importance plot saved to '{plot_path}'")
+print(f"Feature importance plot saved to '{plot_path}'")
 
 try:
     print("Attempting to display plot...")
@@ -85,4 +75,4 @@ try:
 except Exception as e:
     print(f"Could not display plot window, but file should be saved. Error: {e}")
 
-print("\n--- Script Finished ---")
+print("\nScript finished.")

@@ -4,13 +4,10 @@ import seaborn as sns
 import os
 
 def visualize_tree_data(input_file_path, output_dir):
-    """
-    Reads the processed tree data and creates visualizations.
-
-    Args:
-        input_file_path (str): The path to the input CSV file with cost data.
-        output_dir (str): The directory to save the plots.
-    """
+    # Reads processed tree data and creates visualizations of diameter vs cost and cost distribution.
+    # Arguments:
+    #   input_file_path (str): Path to input CSV file with cost data.
+    #   output_dir (str): Directory to save plots.
 
     try:
         print(f"Reading data from {input_file_path}...")
@@ -23,7 +20,7 @@ def visualize_tree_data(input_file_path, output_dir):
         import seaborn as sns
         sns.set_theme(style="whitegrid")
 
-        # --- Visualization 1: Enhanced Scatter plot ---
+        # Scatter plot: diameter vs. estimated cost, colored by health
         plt.figure(figsize=(12, 8))
         scatter = sns.scatterplot(
             data=tree_data, x='tree_dbh', y='estimated_cost',
@@ -32,7 +29,7 @@ def visualize_tree_data(input_file_path, output_dir):
         plt.xlabel('Tree Diameter (inches)', fontsize=14)
         plt.ylabel('Estimated Cost ($)', fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.6)
-        # Annotate mean and median
+        # Add mean and median lines
         mean_cost = tree_data['estimated_cost'].mean()
         median_cost = tree_data['estimated_cost'].median()
         plt.axhline(mean_cost, color='red', linestyle='--', label=f'Mean Cost (${mean_cost:.0f})')
@@ -44,7 +41,7 @@ def visualize_tree_data(input_file_path, output_dir):
         plt.close()
         print(f"Scatter plot saved to {scatter_plot_path}")
 
-        # --- Visualization 2: Enhanced Histogram ---
+        # Histogram: distribution of estimated costs
         plt.figure(figsize=(12, 8))
         hist = sns.histplot(
             tree_data['estimated_cost'].dropna(), bins=50, kde=True,
@@ -53,7 +50,7 @@ def visualize_tree_data(input_file_path, output_dir):
         plt.xlabel('Estimated Cost ($)', fontsize=14)
         plt.ylabel('Number of Trees', fontsize=14)
         plt.grid(True, linestyle='--', alpha=0.6)
-        # Annotate mean and median
+        # Add mean and median lines
         plt.axvline(mean_cost, color='red', linestyle='--', label=f'Mean (${mean_cost:.0f})')
         plt.axvline(median_cost, color='blue', linestyle=':', label=f'Median (${median_cost:.0f})')
         plt.legend()
@@ -69,10 +66,5 @@ def visualize_tree_data(input_file_path, output_dir):
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    input_dir = 'DATA'
-    output_dir = 'VISUALIZATIONS'
-    input_file_name = 'new_york_tree_census_2015_with_costs.csv'
-    
-    input_path = os.path.join(input_dir, input_file_name)
-
+    # ...existing code...
     visualize_tree_data(input_path, output_dir)
